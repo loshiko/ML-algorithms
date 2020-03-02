@@ -1,0 +1,167 @@
+---
+title: "HealthcarAI Learning"
+author: "Venus Kuo"
+date: "2/13/2020"
+output: html_document
+---
+
+1. Complete tutorial: https://docs.healthcare.ai/articles/site_only/healthcareai.html
+
+## Easy Machine Learning
+
+# Set working enviroment and load packages
+
+```{r setup, message = FALSE, warning = FALSE}
+# Set working directory
+rm(list = ls())
+knitr::opts_knit$set(root.dir = "~/Documents/Rush ML Internship")
+
+# Load packages
+library(healthcareai) # Version 2.3.0
+```
+
+# Load diabetes data set 
+
+```{r}
+# Look at structure of diabetes data set
+str(pima_diabetes) 
+```
+
+# Use machine_learn function 
+
+```{r}
+# For a faster run at the expense of predictive power
+quick_models <- machine_learn(pima_diabetes, patient_id, outcome = diabetes)
+```
+
+# Look at the model 
+
+```{r}
+quick_models
+```
+
+# Using predict function
+
+```{r}
+predictions <- predict(quick_models)
+predictions
+```
+
+# Including Plots
+
+```{r predictions, echo=FALSE}
+plot(predictions) # Predicted probabilities 
+
+quick_models %>% predict(outcome_groups = 2) %>% plot()
+  # Predicted probabilities and outcome-class predictions 
+```
+
+## Data Profiling 
+
+```{r}
+# Look for missingnessin the data set
+missingness(pima_diabetes) %>% plot() # missiningness function checks for NULL
+    # Nearly 50% of patients are missing insulin information
+```
+
+## Data Preparation
+
+# Splitting data into train/test sets with split_data function
+
+These functions are automatically done with the machine_learn function but manually doing these steps provide greater customization. 
+
+```{r}
+split_data <- split_train_test(d = pima_diabetes,
+                               outcome = diabetes,
+                               p = 0.9,
+                               seed = 84105)
+    # split_data contains a train and test data frame
+```
+
+# Prepping the data using prep_data function
+
+Used to customize how data is prepared.Typically for ensuring the data format is compatable with the machine learning algorithm.  https://docs.healthcare.ai/reference/prep_data.html 
+
+```{r}
+prepped_training_data <- prep_data(split_data$train, patient_id, 
+                                   outcome = diabetes, center = TRUE, 
+                                   scale = TRUE, collapse_rare_factors = FALSE)
+    # Scale and center numeric variables and avoid collapsing rare factor 
+    # levels into "other"
+```
+
+## Model Training 
+
+# To modify the hyperparameter values with tune_models function
+
+Three models are available: random forest (RF), regularized regression (GLM), gradient-boosted decision trees (XGB)
+
+```{r}
+models <- tune_models(d = prepped_training_data,
+                      outcome = diabetes,
+                      tune_depth = 25,
+                      metric = "PR")
+    # Increase tune_depth to tune the models over more combinations of 
+    # hyperparmeter values in search for the best model
+```
+
+# Evalutate models 
+
+```{r}
+evaluate(models, all_models = TRUE)
+    # Random Forest Algorithm performed the best
+models["Random Forest"] %>% 
+  plot()
+    # Seems that gini is the superior model for the splitrule
+```
+
+## Interpretting models 
+
+```{r}
+interpret(models) %>% plot()
+
+```
+
+## Explore
+
+```{r}
+explore(models) %>% plot()
+```
+
+## Predict
+
+```{r}
+predict(models)
+```
+
+# Test the predictions on test set
+
+```{r}
+test_predictions <- predict(models, 
+                            split_data$test,
+                            risk_groups = c(low = 30, moderate = 40,
+                                            high = 20, extreme = 10))
+plot(test_predictions)
+```
+
+# Saving
+
+```{r}
+save_models(models, file = "test_diabetes_models.RDS")
+models <- load_models("test_diabetes_models.RDS")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
